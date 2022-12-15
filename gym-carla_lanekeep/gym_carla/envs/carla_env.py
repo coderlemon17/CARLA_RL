@@ -34,6 +34,7 @@ class CarlaEnv(gym.Env):
 
     def __init__(self, params):
         # parameters
+        self.verbose = params['verbose']
         self.display_size = params['display_size']  # rendering screen size
         self.max_past_step = params['max_past_step']
         self.number_of_vehicles = params['number_of_vehicles']
@@ -690,7 +691,7 @@ class CarlaEnv(gym.Env):
             r_out = -1
         elif abs(dis) >  0.2:
             r_dis = -(abs(dis)*10)  # 更希望车在车道中间行驶
-        if (self.time_step % 50 == 0):
+        if (self.verbose and self.time_step % 50 == 0):
             print('dis:',dis)
 
         # longitudinal speed 纵向速度
@@ -726,26 +727,31 @@ class CarlaEnv(gym.Env):
 
         # If collides
         if len(self.collision_hist) > 0:
-            print("===collision===")
+            if self.verbose:
+                print("===collision===")
             return True
 
         # If reach maximum timestep
         if self.time_step > self.max_time_episode:
-            print("===max time episode===")
+            if self.verbose:
+                print("===max time episode===")
             return True
 
         # If at destination
         if self.dests is not None:  # If at destination
             for dest in self.dests:
-                print("dest:", dest[0], dest[1])
+                if self.verbose:
+                    print("dest:", dest[0], dest[1])
                 if np.sqrt((ego_x-dest[0])**2+(ego_y-dest[1])**2) < 4:
-                    print("===out of destination===")
+                    if self.verbose:
+                        print("===out of destination===")
                     return True
 
         # If out of lane
         dis, _ = get_lane_dis(self.waypoints, ego_x, ego_y)
         if abs(dis) > self.out_lane_thres:
-            print("===out of lane===", abs(dis))
+            if self.verbose:
+                print("===out of lane===", abs(dis))
             return True
 
         return False

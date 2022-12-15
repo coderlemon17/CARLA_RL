@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import argparse
 import datetime
 import os
@@ -8,7 +7,6 @@ import pprint
 import numpy as np
 import torch
 from torch.utils.tensorboard import SummaryWriter
-
 from tianshou.data import Collector, ReplayBuffer, VectorReplayBuffer
 from tianshou.policy import SACPolicy
 from tianshou.trainer import offpolicy_trainer
@@ -67,18 +65,29 @@ def get_args():
         action="store_true",
         help="watch the play of pre-trained policy only",
     )
-    parser.add_argument("--epoch-gap", type=int, default=2) #单次训练
+    parser.add_argument(
+        '-p', '--port',
+        default=2000,
+        type=int,
+        help='port for connecting Carla'
+    )
+    parser.add_argument(
+        "--noise",
+        type=str,
+        default="none",
+        choices=["none", "pgd", "random"],
+    )
+    parser.add_argument("--epoch-gap", type=int, default=2)
     return parser.parse_args()
 
 
-def test_sac(args=get_args()):
-    env = RoundaboutCarlaEnv()
+def sac(args=get_args()):
+    env = RoundaboutCarlaEnv(port=args.port)
     args.state_shape = env.observation_space.shape or env.observation_space.n
     args.action_shape = env.action_space.shape or env.action_space.n
     args.max_action = env.action_space.high[0]
-    print("Observations shape:", args.state_shape)
-    print("Actions shape:", args.action_shape)
-    print("Action range:", np.min(env.action_space.low), np.max(env.action_space.high))
+    print("Observations shape:", args.state_shape, )
+    print("Actions shape:", args.action_shape, "Action range:", np.min(env.action_space.low), np.max(env.action_space.high))
     # seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -132,23 +141,6 @@ def test_sac(args=get_args()):
         action_space=env.action_space,
     )
 
-    # load a previous policy
-    # path = r"/home/yq/CARLA_0.9.6/CarlaRL/gym-carla_aeb/log/Carla-v3/sac/0/221021-113630/policy.pth"
-    path = r"/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221025-174318/checkpoint3.pth"
-    args.resume_path = path
-    if args.resume_path:
-        policy.load_state_dict(torch.load(args.resume_path, map_location=args.device)['model'])
-        print("Loaded agent from: ", args.resume_path)
-
-
-    # collector
-    if args.training_num > 1:
-        buffer = VectorReplayBuffer(args.buffer_size, len(env))
-    else:
-        buffer = ReplayBuffer(args.buffer_size)
-    train_collector = Collector(policy, env, buffer, exploration_noise=True)
-    test_collector = Collector(policy, env)
-    train_collector.collect(n_step=args.start_timesteps, random=True)
 
     # log
     now = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
@@ -172,18 +164,33 @@ def test_sac(args=get_args()):
     else:  # wandb
         logger.load(writer)
 
+    # load a previous policy
+    # path = r"/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221025-174318/checkpoint3.pth"
+    if args.resume_path:
+        policy.load_state_dict(torch.load(args.resume_path, map_location=args.device)['model'])
+        pprint("Loaded agent from: ", args.resume_path)
+
+    # collector
+    if args.training_num > 1:
+        buffer = VectorReplayBuffer(args.buffer_size, len(env))
+    else:
+        buffer = ReplayBuffer(args.buffer_size)
+    train_collector = Collector(policy, env, buffer, exploration_noise=True)
+    test_collector = Collector(policy, env)
+    train_collector.collect(n_step=args.start_timesteps, random=True)
+
     def save_best_fn(policy):
         state = {"model": policy.state_dict()}
-        torch.save(state, os.path.join(log_path, "policy.pth"))
+        torch.save(state, os.path.join(log_path, "best_policy.pth"))
         print("Output log_path is: ",  log_path)
 
-    def save_checkpoint_fn(epoch, env_step,gradient_step):
+    def save_checkpoint_fn(epoch, env_step, gradient_step):
         print("save_checkpoint")
         if epoch % args.epoch_gap == 0 :
             torch.save({
-                'model':policy.state_dict()
-                },  os.path.join(log_path, f'checkpoint{int(epoch / args.epoch_gap)}.pth'))
-
+                'model': policy.state_dict()
+                },  os.path.join(log_path, f'checkpoint{int(epoch)}.pth')
+            )
 
     if not args.watch:
         # trainer
@@ -206,13 +213,13 @@ def test_sac(args=get_args()):
 
     # Let's watch its performance!
     policy.eval()
-    env.seed(args.seed)
+    # env.seed(args.seed)
     test_collector.reset()
     result = test_collector.collect(n_episode=args.test_num, render=args.render)
     print(f'Final reward: {result["rews"].mean()}, length: {result["lens"].mean()}')
 
 
 if __name__ == "__main__":
-    test_sac()
+    sac()
 
 

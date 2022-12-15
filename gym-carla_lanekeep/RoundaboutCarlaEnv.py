@@ -26,7 +26,8 @@ import carla
 from gym_carla.envs.carla_env import  CarlaEnv
 
 class RoundaboutCarlaEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, port=2000):
+        self.verbose = False
         carla_params = {
             'number_of_vehicles': 0,  #环境中的车辆
             'number_of_walkers': 0,   #环境中的行人
@@ -39,7 +40,7 @@ class RoundaboutCarlaEnv(gym.Env):
             'continuous_accel_range': [-3.0, 3.0],  # continuous acceleration range
             'continuous_steer_range': [-0.3, 0.3],  # continuous steering angle range
             'ego_vehicle_filter': 'vehicle.lincoln*',  # filter for defining ego vehicle
-            'port': 2000,  # connection port
+            'port': port,  # connection port
             'town': 'Town03',  # which town to simulate
             'task_mode': 'lanekeep',  # mode of the task, [acc]
             'max_time_episode': 1000,  # maximum timesteps per episode
@@ -56,6 +57,7 @@ class RoundaboutCarlaEnv(gym.Env):
             'learning_rate': 0.1,
             'discount': 0.9,
             'epsilon': 0.8,
+            'verbose': self.verbose,
         }
         self.out_lane_thres = 10
         self.desired_speed = 30
@@ -105,6 +107,6 @@ class RoundaboutCarlaEnv(gym.Env):
 
         self.timestep += 1
         state = [obs_p['state'][0], obs_p['state'][1], obs_p['state'][2], obs_p['state'][3]]
-        if (self.timestep% 50 == 0):
+        if (self.verbose and self.timestep% 50 == 0):
              print("step:action======", action,'reward:',reward)
         return state, reward,done,{}

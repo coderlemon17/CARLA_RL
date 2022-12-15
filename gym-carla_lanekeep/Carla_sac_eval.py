@@ -3,7 +3,6 @@ import argparse
 import datetime
 import os
 import pprint
-
 import numpy as np
 import torch
 # from mujoco_env import make_mujoco_env
@@ -20,31 +19,32 @@ from tianshou.trainer import offpolicy_trainer
 # from tianshou.utils import TensorboardLogger, WandbLogger
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.continuous import ActorProb, Critic
+from utils import AttackedActorProb
 
 
 def eval_sac(args=get_args()):
     # env, train_envs, test_envs = make_mujoco_env(
     #     args.task, args.seed, args.training_num, args.test_num, obs_norm=False
     # )
-    env = RoundaboutCarlaEnv()
+    env = RoundaboutCarlaEnv(port=args.port)
     args.state_shape = env.observation_space.shape or env.observation_space.n
     args.action_shape = env.action_space.shape or env.action_space.n
     args.max_action = env.action_space.high[0]
     print("Observations shape:", args.state_shape)
-    print("Actions shape:", args.action_shape)
-    print("Action range:", np.min(env.action_space.low), np.max(env.action_space.high))
+    print("Actions shape:", args.action_shape, "Action range:", np.min(env.action_space.low), np.max(env.action_space.high))
     # seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     # model
     net_a = Net(args.state_shape, hidden_sizes=args.hidden_sizes, device=args.device)
-    actor = ActorProb(
+    actor = AttackedActorProb(
         net_a,
         args.action_shape,
         max_action=args.max_action,
         device=args.device,
         unbounded=True,
         conditioned_sigma=True,
+        noise=args.noise
     ).to(args.device)
     actor_optim = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
     net_c1 = Net(
@@ -87,30 +87,22 @@ def eval_sac(args=get_args()):
     )
 
     # load a previous policy
-    if args.resume_path:
-        policy.load_state_dict(torch.load(args.resume_path, map_location=args.device))
-        print("Loaded agent from: ", args.resume_path)
+    if not args.resume_path:
+        print("resume_path is not provided, use default path.")
+        # log_path =  r"/home/yq/CARLA_0.9.6/CarlaRL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221024-151433/policy.pth" # 偏右行驶
+        args.resume_path = '/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Baselines/Carla_SAC_KeepLane/checkpoint3.pth'
+    print("Loaded agent from: ", args.resume_path)
+    policy.load_state_dict(torch.load(args.resume_path, map_location=torch.device(args.device))['model'])
 
-    # log
-    # now = datetime.datetime.now().strftime("%y%m%d-%H%M%S")
-    # now = "2022-well-done"
-    # args.algo_name = "sac"
-    # log_name = os.path.join(args.task, args.algo_name, str(args.seed), now)
-    # log_path = os.path.join(args.logdir, log_name, "policy_20221012.pth")
-    log_path =  r"/home/yq/CARLA_0.9.6/CarlaRL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221024-151433/policy.pth" # 偏右行驶
-    # log_path =  r"/home/yq/CARLA_0.9.6/CarlaRL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221024-151433/policy.pth"
-    print()
-    # model_dir = os.path.join(project_path, args.logdir, args.task, Algorithm_name, args.modeldir, 'model.pth')
-    policy.load_state_dict(torch.load(log_path, map_location=torch.device(args.device))['model'])
     # Let's watch its performance!
-    policy.eval()
+    # policy.eval()
     # policy.actor.forward()
-    env.seed(args.seed)
+    # env.seed(args.seed)
     collector = Collector(policy, env)
     # args.render = 0.001
     # result = collector.collect(n_episode=100, render=args.render)
-    result = collector.collect(n_episode=100, render=args.render)
-    print(f'Final reward: {result["rews"].mean()}, length: {result["lens"].mean()}')
+    result = collector.collect(n_episode=args.test_num, render=args.render, no_grad=False)
+    print(f'Final reward for {args.test_num} trajectory: {result["rews"].mean():.2f} / {np.var(result["rews"]):.2f}, length: {result["lens"].mean():.2f} / {np.var(result["lens"]):.2f}')
 
 
 if __name__ == "__main__":

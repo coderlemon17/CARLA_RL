@@ -13,5 +13,8 @@
 xvfb-run -n 99 --server-args="-screen 0 1280x760x24" -l python Carla_sac.py
 ```
 
+# Notes
+- `python Carla_sac.py`之后, 光`collect`要很久(大概40min), 从`Actor 849`到`Actor 939`.
+
 # TODOS
 - [] Fix all absolute path setting and refactoring the code.
