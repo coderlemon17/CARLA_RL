@@ -28,6 +28,7 @@ from gym_carla.envs.carla_env import  CarlaEnv
 class RoundaboutCarlaEnv(gym.Env):
     def __init__(self, port=2000):
         self.verbose = False
+        self.max_timestep = 100
         carla_params = {
             'number_of_vehicles': 0,  #环境中的车辆
             'number_of_walkers': 0,   #环境中的行人
@@ -43,7 +44,7 @@ class RoundaboutCarlaEnv(gym.Env):
             'port': port,  # connection port
             'town': 'Town03',  # which town to simulate
             'task_mode': 'lanekeep',  # mode of the task, [acc]
-            'max_time_episode': 1000,  # maximum timesteps per episode
+            'max_time_episode': self.max_timestep,  # maximum timesteps per episode
             'max_waypt': 12,  # maximum number of waypoints
             'obs_range': 32,  # observation range (meter)
             'lidar_bin': 0.125,  # bin size of lidar sensor (meter)
@@ -61,7 +62,7 @@ class RoundaboutCarlaEnv(gym.Env):
         }
         self.out_lane_thres = 10
         self.desired_speed = 30
-        self.max_timestep = 1000
+        
         
         """
         状态空间：

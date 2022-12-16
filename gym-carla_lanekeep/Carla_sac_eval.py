@@ -90,19 +90,21 @@ def eval_sac(args=get_args()):
     if not args.resume_path:
         print("resume_path is not provided, use default path.")
         # log_path =  r"/home/yq/CARLA_0.9.6/CarlaRL/gym-carla_lanekeep/log/Carla-KeepLane-v3/sac/0/221024-151433/policy.pth" # 偏右行驶
-        args.resume_path = '/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Baselines/Carla_SAC_KeepLane/checkpoint3.pth'
+        # args.resume_path = '/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Baselines/Carla_SAC_KeepLane/checkpoint17.pth' #震荡
+        args.resume_path = '/home/zhouxinning/Workspace/Carla/CARLA_RL/gym-carla_lanekeep/log/Baselines/Carla_SAC_KeepLane/checkpoint21.pth'
     print("Loaded agent from: ", args.resume_path)
     policy.load_state_dict(torch.load(args.resume_path, map_location=torch.device(args.device))['model'])
 
     # Let's watch its performance!
-    # policy.eval()
+    policy.eval()
     # policy.actor.forward()
     # env.seed(args.seed)
     collector = Collector(policy, env)
     # args.render = 0.001
     # result = collector.collect(n_episode=100, render=args.render)
     result = collector.collect(n_episode=args.test_num, render=args.render, no_grad=False)
-    print(f'Final reward for {args.test_num} trajectory: {result["rews"].mean():.2f} / {np.var(result["rews"]):.2f}, length: {result["lens"].mean():.2f} / {np.var(result["lens"]):.2f}')
+    print(f'Final reward for {args.test_num} trajectory: {result["rews"].mean():.2f} / {np.std(result["rews"]):.2f}, length: {result["lens"].mean():.2f} / {np.std(result["lens"]):.2f}')
+    print(result["rews"])
 
 
 if __name__ == "__main__":

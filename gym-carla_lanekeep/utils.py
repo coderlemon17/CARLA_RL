@@ -104,7 +104,7 @@ class AttackedActorProb(nn.Module):
         """Mapping: obs -> logits -> (mu, sigma)."""
         obs = torch.tensor(obs, requires_grad=True, device=self.device, dtype=torch.float32)
         # obs 4, l2, epsilon < 3e-2:
-        noise_epsilon = 3e-3
+        noise_epsilon = 3e-1
 
 
         if self.noise == 'pgd':
@@ -121,7 +121,6 @@ class AttackedActorProb(nn.Module):
                 _obs = _obs.detach().clone().requires_grad_()
                 if _obs.grad is not None:
                     _obs.grad.zero_()
-
                 (mu, sigma), state = self.my_forward(_obs, state, info)
                 kl_loss = kl_divergence(Normal(_mu, _sigma), Normal(torch.nan_to_num(mu), sigma)).sum()
                 kl_loss.backward()
