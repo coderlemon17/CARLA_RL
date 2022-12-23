@@ -121,12 +121,13 @@ class AttackedActorProb(nn.Module):
                 _obs = _obs.detach().clone().requires_grad_()
                 if _obs.grad is not None:
                     _obs.grad.zero_()
+                # with torch.enable_grad():
                 (mu, sigma), state = self.my_forward(_obs, state, info)
                 kl_loss = kl_divergence(Normal(_mu, _sigma), Normal(torch.nan_to_num(mu), sigma)).sum()
                 kl_loss.backward()
 
                 _obs = _obs + pgd_noise * _obs.grad / (torch.norm(_obs.grad) + 1e-10)
-            obs = obs + noise_epsilon * (_obs - obs) / (torch.norm(_obs - obs) + 1e-10)
+            obs = obs + noise_epsilon * (_obs.detach().clone() - obs) / (torch.norm(_obs.detach().clone() - obs) + 1e-10)
         elif self.noise == 'random':
             noise = torch.randn_like(obs)
             obs = obs + noise_epsilon * noise / torch.norm(noise)

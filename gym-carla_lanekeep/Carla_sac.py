@@ -13,6 +13,7 @@ from tianshou.trainer import offpolicy_trainer
 from tianshou.utils import TensorboardLogger, WandbLogger
 from tianshou.utils.net.common import Net
 from tianshou.utils.net.continuous import ActorProb, Critic
+from utils import AttackedActorProb
 
 import sys
 try:
@@ -93,13 +94,14 @@ def sac(args=get_args()):
     torch.manual_seed(args.seed)
     # model
     net_a = Net(args.state_shape, hidden_sizes=args.hidden_sizes, device=args.device)
-    actor = ActorProb(
+    actor = AttackedActorProb(
         net_a,
         args.action_shape,
         max_action=args.max_action,
         device=args.device,
         unbounded=True,
         conditioned_sigma=True,
+        noise=args.noise
     ).to(args.device)
     actor_optim = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
     net_c1 = Net(
@@ -177,7 +179,7 @@ def sac(args=get_args()):
         buffer = ReplayBuffer(args.buffer_size)
     train_collector = Collector(policy, env, buffer, exploration_noise=True)
     test_collector = Collector(policy, env)
-    train_collector.collect(n_step=args.start_timesteps, random=True)
+    train_collector.collect(n_step=args.start_timesteps, random=True, no_grad=False)
 
     def save_best_fn(policy):
         state = {"model": policy.state_dict()}
@@ -215,7 +217,7 @@ def sac(args=get_args()):
     policy.eval()
     # env.seed(args.seed)
     test_collector.reset()
-    result = test_collector.collect(n_episode=args.test_num, render=args.render)
+    result = test_collector.collect(n_episode=args.test_num, render=args.render, no_grad=False)
     print(f'Final reward: {result["rews"].mean()}, length: {result["lens"].mean()}')
 
 

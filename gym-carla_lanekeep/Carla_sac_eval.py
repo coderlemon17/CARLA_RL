@@ -21,6 +21,8 @@ from tianshou.utils.net.common import Net
 from tianshou.utils.net.continuous import ActorProb, Critic
 from utils import AttackedActorProb
 
+from rich.pretty import pprint
+
 
 def eval_sac(args=get_args()):
     # env, train_envs, test_envs = make_mujoco_env(
@@ -99,12 +101,22 @@ def eval_sac(args=get_args()):
     policy.eval()
     # policy.actor.forward()
     # env.seed(args.seed)
-    collector = Collector(policy, env)
+    # "100" should match with max_timesteps in RoundaboutCarlaEnv
+    buffer = ReplayBuffer(size=args.test_num * 100)
+    collector = Collector(policy, env, buffer)
     # args.render = 0.001
     # result = collector.collect(n_episode=100, render=args.render)
     result = collector.collect(n_episode=args.test_num, render=args.render, no_grad=False)
-    print(f'Final reward for {args.test_num} trajectory: {result["rews"].mean():.2f} / {np.std(result["rews"]):.2f}, length: {result["lens"].mean():.2f} / {np.std(result["lens"]):.2f}')
-    print(result["rews"])
+    
+    print(f'Final reward for {args.test_num} trajectory:' )
+
+    pprint({
+        'rewards': f'{result["rews"].mean():.2f} / {np.std(result["rews"]):.2f}',
+        'length': f'{result["lens"].mean():.2f} / {np.std(result["lens"]):.2f}',
+        'velocity': f'{collector.buffer.info.velocity.mean():.2f} / {collector.buffer.info.velocity.std():.2f}',
+        'deviation': f'{collector.buffer.info.deviation.mean():.2f} / {collector.buffer.info.deviation.std():.2f}',
+        'is_crash': f'{collector.buffer.info.is_crash.mean():.2f} / {collector.buffer.info.is_crash.std():.2f}',
+    })
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ class RoundaboutCarlaEnv(gym.Env):
     def __init__(self, port=2000):
         self.verbose = False
         self.max_timestep = 100
+        self.max_deviation = 1.0
         carla_params = {
             'number_of_vehicles': 0,  #环境中的车辆
             'number_of_walkers': 0,   #环境中的行人
@@ -59,6 +60,7 @@ class RoundaboutCarlaEnv(gym.Env):
             'discount': 0.9,
             'epsilon': 0.8,
             'verbose': self.verbose,
+            'max_deviation': self.max_deviation,
         }
         self.out_lane_thres = 10
         self.desired_speed = 30
@@ -104,10 +106,10 @@ class RoundaboutCarlaEnv(gym.Env):
         return state['state']
 
     def step(self, action):
-        obs_p, reward, done, info= self.env.step(action)
+        obs_p, reward, done, info = self.env.step(action)
 
         self.timestep += 1
         state = [obs_p['state'][0], obs_p['state'][1], obs_p['state'][2], obs_p['state'][3]]
         if (self.verbose and self.timestep% 50 == 0):
              print("step:action======", action,'reward:',reward)
-        return state, reward,done,{}
+        return state, reward, done, info

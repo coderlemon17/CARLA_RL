@@ -35,6 +35,7 @@ class CarlaEnv(gym.Env):
     def __init__(self, params):
         # parameters
         self.verbose = params['verbose']
+        self.max_deviation = params['max_deviation']
         self.display_size = params['display_size']  # rendering screen size
         self.max_past_step = params['max_past_step']
         self.number_of_vehicles = params['number_of_vehicles']
@@ -315,16 +316,19 @@ class CarlaEnv(gym.Env):
         self.waypoints, _, self.vehicle_front = self.localplanner.run_step()
 
         # state information
+        reward, _info = self._get_reward()
+
         info = {
             'waypoints': self.waypoints,
-            'vehicle_front': self.vehicle_front
+            'vehicle_front': self.vehicle_front,
+            **_info
         }
 
         # Update timesteps
         self.time_step += 1
         self.total_step += 1
 
-        return (self._get_obs(), self._get_reward(), self._terminal(), copy.deepcopy(info))
+        return (self._get_obs(), reward, self._terminal(), copy.deepcopy(info))
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -718,7 +722,14 @@ class CarlaEnv(gym.Env):
         # print('r_collision:',200*r_collision,'lspeed_lon:',lspeed_lon,'r_fast:',10*r_fast,'r_out:',5*r_out,'r_lat:',0.2*r_lat,'r_brake:',2*r_brake,'r_trajectory:',0.1*r_trajectory,'r_throttle:',r_throttle)
         r = 200*r_collision + 1*lspeed_lon + 10*r_fast + 5 * \
             r_out + 0.2*r_lat + 10*r_brake + r_throttle - 0.1 +  1*r_dis
-        return r
+
+        _info = {
+            'velocity': lspeed_lon,
+            'deviation': abs(dis),
+            'is_crash': (abs(dis) > self.max_deviation)
+        }
+
+        return r, _info
 
     def _terminal(self):
         """Calculate whether to terminate the current episode."""
